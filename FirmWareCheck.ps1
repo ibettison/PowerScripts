@@ -1,0 +1,1 @@
+﻿Get-WmiObject -Class Dell_CMApplication -Filter "componentType = 'FRMW'" -ComputerName "localhost" | Select-Object -Property name,version
