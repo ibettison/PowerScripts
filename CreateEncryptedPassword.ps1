@@ -1,6 +1,6 @@
 ﻿$secureCredentials = Get-Credential
-$AESKeyFilePath = '\\crf-psrv2\Protected\AESKey.txt'
-$FilePath = '\\crf-psrv2\Protected\password.txt'
+$AESKeyFilePath = 'C:\temp\Protected\AESKey.txt'
+$FilePath = 'C:\temp\Protected\password.txt'
 $AESKey = New-Object Byte[] 32
 [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($AESKey)
 	
