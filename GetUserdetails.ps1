@@ -39,3 +39,4 @@
   Get-ADUser -Filter {Surname -like $searchFor} | Select-Object -Property Name,SamAccountName,GivenName,Surname
 
 }
+

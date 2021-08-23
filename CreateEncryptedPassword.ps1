@@ -27,13 +27,14 @@
     if(!(Test-Path -Path "$env:SystemDrive\Temp\Protected\")) {
       Invoke-Command -Session $sess -ScriptBlock { New-Item -Path "$env:SystemDrive\Temp\Protected\" -ItemType 'directory' }
     }
-  $script = {
-      $path = "$env:SystemDrive\Temp\Protected\"
-      $secureCredentials = Get-Credential
-      $AESKeyFilePath = "$path\AESKey.txt"
-      $FilePath = "$path\password.txt"
-      $AESKey = New-Object -TypeName Byte[] -ArgumentList 32
-      [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($AESKey)
+		$script = {
+		$path = "$env:SystemDrive\Temp\Protected\"
+﻿		$secureCredentials = Get-Credential
+		$AESKeyFilePath = 'C:\temp\Protected\AESKey.txt'
+		$FilePath = 'C:\temp\Protected\password.txt'
+		$AESKey = New-Object Byte[] 32
+		[Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($AESKey)
+
 	
       # Store the AESKey into a file. This file should be protected!  (e.g. ACL on the file to allow only select people to read)
       Set-Content -Path $AESKeyFilePath -Value $AESKey   # Any existing AES Key file will be overwritten	

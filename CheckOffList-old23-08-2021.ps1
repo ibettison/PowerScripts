@@ -762,17 +762,13 @@ function Add-FolderStructure($selectedFile){
       $aclSub.SetAccessRuleProtection($true,$true)
            
       ##########################################################
-      #for the new/existing subfolder add the selected groups with read
-      if(![string]::IsNullOrEmpty($globalReadSecGroup.Text)) 
-      {
-        $ruleIdentity = Get-ADGroup -Filter {Name -eq $globalReadSecGroup.Text}
-        $ruleParams = $ruleIdentity.SID, "ReadAndExecute", "ContainerInherit, ObjectInherit","None", "Allow"
-        #Create the Access control rule for the sub folder
-        $ruleSub = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleParams) 
-        #Add the rule to the access control list
-        $aclSub.AddAccessRule($ruleSub)
-      }                     
-
+      #for the new/existing subfolder add the selected groups with read             
+      $ruleIdentity = Get-ADGroup -Filter {Name -eq $globalReadSecGroup.Text}
+      $ruleParams = $ruleIdentity.SID, "ReadAndExecute", "ContainerInherit, ObjectInherit","None", "Allow"
+      #Create the Access control rule for the sub folder
+      $ruleSub = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleParams) 
+      #Add the rule to the access control list
+      $aclSub.AddAccessRule($ruleSub)               
       ######################################
       #Now add the rights for the new access
       # get the SID of the group (for more consistency)

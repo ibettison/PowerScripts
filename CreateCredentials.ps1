@@ -78,8 +78,8 @@ function Add-NewLocalAdmin {
 }
 
 # Your script here
-  $credentials = Get-Credentials -RemoteProtected "$env:SystemDrive\Temp\Protected\" -UserName '\\campus\sib8'
+
+  #$credentials = Get-Credentials -RemoteProtected "$env:SystemDrive\Temp\Protected\" -UserName '\\campus\sib8'
   $NewLocalAdmin = Read-Host -Prompt 'New local admin username:'
   $Password = Read-Host -AsSecureString -Prompt ('Create a password for {0}' -f $NewLocalAdmin)  
   Add-NewLocalAdmin -NewLocalAdmin $NewLocalAdmin -Password $Password
-
