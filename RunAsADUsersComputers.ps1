@@ -1,0 +1,1 @@
+﻿c:\windows\system32\runas.exe /user:campus\sib8 "c:\windows\system32\cmd.exe"

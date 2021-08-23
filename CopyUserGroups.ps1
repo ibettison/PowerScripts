@@ -31,7 +31,7 @@ $Creds = ''
 Clear-Host
 #Type the user name to search for, accepts patial matches
 $UserToCopy = Read-Host -Prompt 'Type the user to copy from'
-Write-Host 'Please Wait! Searching for matching users...'
+Write-Host 'Please Wait! Searching for matching users may take a little while...'
 # Exits if the string is empty
 if(-not [string]::IsNullOrEmpty($UserToCopy)) 
 	{
@@ -53,19 +53,20 @@ if(-not [string]::IsNullOrEmpty($UserToCopy))
 		# Enter a user Id to copy the groups to
 		$UserToCopyTo = Read-Host -Prompt 'Type the user to copy the AD Groups To'
 		if( -not [string]::IsNullOrEmpty($UserToCopyTo)) {
-			try
-			{
-				$UserToCopyTo = ('*{0}*' -f $UserToCopyTo)
-				# use the entered user name to find the userid of the user to copy the groups to
-				$UserId = Get-SelectedUserId -UserToCopy $UserToCopyTo
-				if([string]::IsNullOrEmpty($UserId)) {
-					throw('No User Id selected.')
-				}
-			}
-			catch
-			{
-				Write-Verbose -Message ("`nERROR: {0}" -f $_)
-			}
+      try
+      {
+        $UserToCopyTo = ('*{0}*' -f $UserToCopyTo)
+        # use the entered user name to find the userid of the user to copy the groups to
+        $UserId = Get-SelectedUserId -UserToCopy $UserToCopyTo
+        if([string]::IsNullOrEmpty($UserId)) {
+          throw('No User Id selected.')
+        }
+      }
+      catch
+      {
+        Write-Error -Message ("`nERROR: {0}" -f $_)
+        EXIT
+      }
 			# Enter credentials to allow the AD changes
 			if([string]::IsNullOrEmpty($Creds))
 			{
@@ -82,26 +83,3 @@ if(-not [string]::IsNullOrEmpty($UserToCopy))
 		}
 
 	}
-# SIG # Begin signature block
-# MIID3gYJKoZIhvcNAQcCoIIDzzCCA8sCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
-# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU1wTNKvXdULFu+ZGCp99hatP8
-# EC6gggH9MIIB+TCCAWKgAwIBAgIQGSRf+W35IotAImM/6TUuxzANBgkqhkiG9w0B
-# AQUFADAXMRUwEwYDVQQDDAxJYW4gQmV0dGlzb24wHhcNMTcwNDI4MDgzMDM3WhcN
-# MjEwNDI4MDAwMDAwWjAXMRUwEwYDVQQDDAxJYW4gQmV0dGlzb24wgZ8wDQYJKoZI
-# hvcNAQEBBQADgY0AMIGJAoGBAKuEcX8bvzsWz94mWGsHr1CHHvqg9YyWv4/wRAki
-# KDvuMsOQJHPaiRRcKnwZN8NsA6ZST3LKH3hEycMBTK7N6aHPvz0gj1oOJkEE6UYv
-# iO+nGYOPBgsmr/Jca0lUQJ5WUZywgYygrQJC48YgXwmWevqruKUmEpBR+O1i+DbP
-# l8ERAgMBAAGjRjBEMBMGA1UdJQQMMAoGCCsGAQUFBwMDMB0GA1UdDgQWBBQ3UR9H
-# xueybrz56h+0tmfMxWHgYDAOBgNVHQ8BAf8EBAMCB4AwDQYJKoZIhvcNAQEFBQAD
-# gYEAWLHmiaG9mMtr2z4e8q+ftK2yMh+5rR7n77rF/KPbWHV37FmB5S5o4IjdsTnE
-# BPv1wUFFDyfac+rudVt4Cy5uyPVcO3FWQ34tuQgrZMid6v9OcAFAUWX1UvHOlI5M
-# nVu10Y5SIsCtKThTWW5UWm0yCuIe+FsmnlvMWwFdANen3NoxggFLMIIBRwIBATAr
-# MBcxFTATBgNVBAMMDElhbiBCZXR0aXNvbgIQGSRf+W35IotAImM/6TUuxzAJBgUr
-# DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
-# DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUPmgCd+l82ugNxY1gVRHSjssspVgwDQYJKoZIhvcNAQEBBQAE
-# gYB7Z2vT1cmBsW6O5dM0OFq0dNX+cDjm0SML13Wk8Cjqn200TNhCcjU8egCDRpmi
-# RFaxCGxvIIc2Qw3sEPl9hB4SiCicfwNhswtVZcP6bnpTEtjr1zeGcR9hD1gzO/g7
-# lk1zM5KzBqlpbfDFvs44xMzFQzMNtpbgPRWMXafrKgvdWg==
-# SIG # End signature block
