@@ -275,7 +275,10 @@ function get-prefix{
 function create-Folder($path){
   if(!(test-path $path))
   {
+    #create thenew project folder
     New-Item -ItemType Directory -Force -Path $path
+    #after creating the project folder need to create the TMF folder and the TMF-Secure Folder
+    
   }
 }
 
@@ -462,7 +465,9 @@ function get-location
       }
       false
       {
+        #chec if the folder exists if not create it
         create-Folder("C:\temp\Project")
+        #get the project folder
         $path = Get-Folder
         [xml]$doc = New-Object System.Xml.XmlDocument
         $dec = $doc.CreateXmlDeclaration("1.0", "UTF-8", $null)
@@ -492,32 +497,43 @@ Programmed By Ian Bettison
   }
 }
 
-function load-Structure {
+function load-Structure 
+{
   if([string]::IsNullOrEmpty($FolderName.Text) -or $FolderName.Text -eq "Enter the Folder Name") {
     show-message("Please enter a folder name.")
   }else{
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
+    #get the folder that points to the structure definition file (xml)
     $listOfFiles = $structureLocation.Text = Get-Folder
     if(![string]::IsNullOrEmpty($listOfFiles)){
+      #get all of the files in the folder
       $Files = Get-ChildItem -Path $listOfFiles
       if(![string]::IsNullOrEmpty($structureView.Items)) {
+        #clear the list to write it again
         $structureView.Items.Clear()
       }
+      #create the range in the structure list box
       $structureView.Items.AddRange($Files)
+      #add a checkbox to them
       $structureView.CheckOnClick = $true
       $structureView.Add_ItemCheck({create-Project($structureView.SelectedItem) -ErrorAction Stop})
+      #set the name to retrieve the xml status file
       $saveName = $folderName.Text
       [xml]$xmlFile = Get-Content -path "C:\temp\project\$saveName.xml"
+      #check if the structure has bee created in the status file
       if([string]::IsNullOrEmpty($xmlFile.Project.Structure))
       {
+        #create the structure
         $structure = $xmlFile.Project.AppendChild($xmlFile.CreateElement("Structure"))
         $structure.AppendChild($xmlFile.CreateTextNode($listOfFiles))      
       }else{
+        #if structure exists then load it
         $structure = $xmlFile.SelectSingleNode("//Structure")
         $structure.InnerText = $listOfFiles
       }
       if([string]::IsNullOrEmpty($xmlFile.Project.StructureListing)){
+        #if doesn't exist in the status xml file then create it 
         $structureListing = $xmlFile.Project.AppendChild($xmlFile.CreateElement("StructureListing"))
         foreach($file in $files){
           $structureList = $structureListing.AppendChild($xmlFile.CreateElement("StructureList"))
@@ -571,8 +587,8 @@ function create-Project( $fileSelect ) {
       #There is a problem with the information passed to the function by the user
       Write-Error -Message "There has been an Error. Error was: $_" -ErrorAction Stop
     }
-    $OUCreated = create-OU
-    $newGroup = add-GlobalGroup
+    $TopLevelCreated = create-topLevelAccess
+    $newGroup = add-GroupAccess
     $newFolders = Add-FolderStructure($fileSelect)
     Write-Host
     Write-Host "The process has completed."
@@ -595,32 +611,38 @@ function create-Project( $fileSelect ) {
 }
 
 
-function create-OU {
-  $OUPath = $organisationUnit.Text
-  $prefix = $OrgUnitPrefix.Text
+function create-topLevelAccess {
+
   try
   {      
-    #Create a new Project List group to add Read and Execute Access
-    $newFolderList = $prefix+$folderName.Text+"_Auto_ListProject"
-    if($CreateFolder.Checked -eq $true)
-    {
-              
-      #join the selected path and the entered foldername to form the working folder path
-      $newFolder =join-Path -Path $location.Text -ChildPath $folderName.text
-      #If required a new folder is created 
-      #check if folder exists already
-      if(-not (test-path -Path $newFolder -PathType Container)) {
-        #creates the new folder 
-        New-Item -ItemType directory -Path $newFolder -ErrorAction Stop 
+    #Create a new Project top level Access    
+    #join the selected path and the entered foldername to form the working folder path
+    $newFolder =join-Path -Path $location.Text -ChildPath $folderName.text
+    #If required a new folder is created 
+    #check if folder exists already
+    if(-not (test-path -Path $newFolder -PathType Container)) {
+      #creates the new folder 
+      New-Item -ItemType directory -Path $newFolder -ErrorAction Stop
+      #now lets create the TMF folders for the read access and the no access for the Stats team
+      $TMFPath = "TMF"
+      $TMFSecurePath = "TMF Secure"
+      $newTMFFolder = join-Path -Path $newFolder -ChildPath  $TMFPath
+      $newTMFSecFolder = join-Path -Path $newFolder -ChildPath  $TMFSecurePath
+      if(-not (test-path -Path $newTMFFolder -PathType Container)) {
+        New-Item -ItemType directory -Path $newTMFFolder -ErrorAction Stop
       }
-      if(![string]::IsNullOrEmpty($OUPath))
-      {
-        #create a new OU for the new project security groups 
-        New-ADOrganizationalUnit -Name $folderName.Text -Path $OUPath
-        New-ADGroup -Name $newFolderList -GroupCategory Security -GroupScope Global -Path ("OU={0},{1}" -f $folderName.Text, $OUPath) -Description ("\{0}" -f $folderName.Text)    
-        add-AclToFolder($newFolder, $newFolderList)
-      }
-    }      
+      if(-not (test-path -Path $newTMFSecFolder -PathType Container)) {
+        New-Item -ItemType directory -Path $newTMFSecFolder -ErrorAction Stop
+      }        
+    }
+    #add access to new project folder for the project list group (Projects_List_CTU_Trials)
+    add-AclToFolder $newFolder "Projects_List_CTU_Trials" "List"
+    #add group access for the low levels TMF and TMF Secure
+    add-AclToFolder $newTMFFolder $globalReadSecGroup.Text "Read"
+    add-AclToFolder $newTMFFolder $readSecGroup.Text "Read"
+    add-AclToFolder $newTMFFolder $writeSecGroup.Text "Write"
+    add-AclToFolder $newTMFSecFolder $globalReadSecGroup.Text "Read"
+    add-AclToFolder $newTMFSecFolder $writeSecGroup.Text "Write"      
   }
   catch
   {
@@ -629,9 +651,26 @@ function create-OU {
   }
 
 }
-function add-AclToFolder( $folder, $secGroup) {
-  $acl = Get-Acl $newFolder
-        
+function add-AclToFolder {
+   param
+   (
+     [Parameter(Mandatory=$true, Position=0)]
+     [String]
+     $folderParam,
+     [Parameter(Mandatory=$true, Position=1)]
+     [String]
+     $secGroupParam,
+     [Parameter(Mandatory=$true, Position=3)]
+     [String] $setAccessTypeParam
+         
+   )
+  
+  $acl = Get-Acl $folderParam
+  #break the inheritence and copy the inherited access rules 
+  $acl.SetAccessRuleProtection($true,$true)
+  #Set the Access Control List after the removal of inheritance as this confuses things
+  (Get-Item $folderParam).SetAccessControl($acl)
+  $acl = Get-Acl $folderParam       
   <#Parameters for SetAccessRuleProtection
       isProtected
       Boolean
@@ -641,201 +680,122 @@ function add-AclToFolder( $folder, $secGroup) {
       Boolean
       true to preserve inherited access rules; false to remove inherited access rules. This parameter is ignored if isProtected is false.
   #>        
-  #break the inheritence and copy the inherited access rules 
-  $acl.SetAccessRuleProtection($true,$true)
-  $ruleIdentitySId = (Get-ADGroup -Filter {Name -eq $newFolderList}).SID
-  $ruleParams = $ruleIdentitySId, "ListDirectory", "Allow"
+  
+  $ruleIdentity = (Get-ADGroup -Filter {Name -eq $secGroupParam}).SID
+  Switch($setAccessTypeParam)
+  {
+    "List" 
+    {
+      $ruleParams = $ruleIdentity, "ListDirectory", "Allow"
+    }
+    "Read"
+    {
+      $ruleParams = $ruleIdentity, "ReadAndExecute", "ContainerInherit, ObjectInherit","None", "Allow"
+    }
+    "Write"
+    {
+      $ruleParams = $ruleIdentity, "Modify", "ContainerInherit, ObjectInherit","None", "Allow"
+    }
+  }
+  
   #Create the Access rule
   $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleParams)
+  #need to have a pause to allow AD to update
   #Add the Access rule to the Access control List
-  $acl.AddAccessRule($rule)
+  $acl.SetAccessRule($rule)  
   #Set the Access Control List
-  (Get-Item $newFolder).SetAccessControl($acl)
-}
+  (Get-Item $folderParam).SetAccessControl($acl)
+  Get-Acl $folderParam | ForEach-Object Access
+  $acl = ''
+  $rule =''
+  }
 
-function add-GlobalGroup {
+function add-GroupAccess {
   $newFolder = $location.Text
-  $prefix = $OrgUnitPrefix.Text
-  $newFolderList = $prefix+$folderName.Text+"_Auto_ListProject"
-  ############################################
-  #get the access control list from the folder
-  $acl = Get-Acl $newFolder
-        
-  <#Parameters for SetAccessRuleProtection
-      isProtected
-      Boolean
-      true to protect the access rules associated with this ObjectSecurity object from inheritance; false to allow inheritance.
-
-      preserveInheritance
-      Boolean
-      true to preserve inherited access rules; false to remove inherited access rules. This parameter is ignored if isProtected is false.
-  #>        
-  #break the inheritence and copy the inherited access rules 
-  $acl.SetAccessRuleProtection($true,$true)
-       
+  $ProjectsGroup = "Projects_List_CTU_Trials"     
   #check if Groups have been selected
   if(![string]::IsNullOrEmpty($globalReadSecGroup.Text)) 
   {
-    ###############################################################################
-    #for the selected groups add Read and Execute access for them to the new folder 
-
-    $ruleIdentity = Get-ADGroup -Filter {Name -eq $globalReadSecGroup.Text}
-    $ruleParams = $ruleIdentity.SID, "ReadAndExecute", "ContainerInherit, ObjectInherit","None", "Allow"
-    #Create the Access rule
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleParams)
-    #Add the Access rule to the Access control List
-    $acl.AddAccessRule($rule)                        
-   
-       
+    #Add the global read group to the Projects list group so the project folder can be listed from the toplevel 
+    Add-ADGroupMember -Identity $ProjectsGroup -Members $globalReadSecGroup.Text    
+  }
+  if(![string]::IsNullOrEmpty($readSecGroup.Text)) 
+  {
+    #Add the global read group to the Projects list group so the project folder can be listed from the toplevel 
+    Add-ADGroupMember -Identity $ProjectsGroup -Members $readSecGroup.Text    
+  }
+  if(![string]::IsNullOrEmpty($writeSecGroup.Text)) 
+  {
+    #Add the global read group to the Projects list group so the project folder can be listed from the toplevel 
+    Add-ADGroupMember -Identity $ProjectsGroup -Members $writeSecGroup.Text    
   }       
-  $ruleIdentitySId = (Get-ADGroup -Filter {Name -eq $newFolderList}).SID
-  $ruleParams = $ruleIdentitySId, "ListDirectory", "Allow"
-  #Create the Access rule
-  $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleParams)
-  #Add the Access rule to the Access control List
-  $acl.AddAccessRule($rule)
-  #Set the Access Control List
-  (Get-Item $newFolder).SetAccessControl($acl)
+  
 }
 
 function Add-FolderStructure($selectedFile){
-  $prefix = $OrgUnitPrefix.Text
-  $newFolderList = $prefix+$folderName.Text+"_Auto_ListProject"
+  
   #if a structure file is not chosen then the script ends
-    #retrieve the contents of the file
+    #retrieve the contents of the XML file
     $fileLocation = join-Path -Path $Structurelocation.Text -ChildPath $selectedFile
-    $content = Get-Content -Path $fileLocation
-    #Split the file contents on a semicolon to create a folders array.
-    $folders = $content -split ";"
-    $folderCount = 1
-    # at this point need to strip off the first item in the folders array and save the name to be used in the naming of the groups.
-    $groupName = $folders[0]
-    $remove=0
-    $folders = $folders | Where-Object { $_ -ne $folders[$remove] }
-    # lets remove all the blank values need to make sure there are no spaces after the semicolon ; on each line.
-    $folders = $folders | Where-Object -FilterScript {$_ -ne ""}
-    #now we need to add the groups to the read only permission group and the write security group
-    if(![string]::IsNullOrEmpty($ReadSecGroup.Text)){
-
-      $ReadOnlyGroups = (Get-ADGroup -Filter {Name -eq $ReadSecGroup.Text}).SID
-    }
-    if(![string]::IsNullOrEmpty($WriteSecGroup.Text)){
-      $WriteGroups = (Get-ADGroup -Filter {Name -eq $WriteSecGroup.Text}).SID
-    }
-     
-    $GroupPrefix = $prefix       
-    ##############################################################################
-    #Loop through the folders creating the the new folders if required from the structure file 
-    #Also create a folder Access group
-    foreach($folder in $folders) 
+    $baseFolder = $location.Text +"\"+ $folderName.Text +"\TMF"
+    $baseSecFolder = $location.Text+"\" + $folderName.Text +"\TMF Secure"
+    [xml]$xmlFile = Get-Content -path $fileLocation
+    $folders = $xmlFile.Project.FolderList
+    $HeaderDetail = $xmlFile.Project.Header
+    $path = $HeaderDetail.Path.Name
+    $Link = $HeaderDetail.Link.Name
+    $Level = $HeaderDetail.Level.Name
+    While(![String]::IsNullOrEmpty($Link))
     {
-      if($CreateFolder.Checked -eq $true) {
-        $newSubPath = join-Path -Path $location.Text -ChildPath $folderName.Text
-      }else{
-        $newSubPath = $location.Text
+      foreach($folder in $folders.Folder) 
+      {
+        $folderPath = $baseFolder+$path
+        #if required create the new subfolder
+        $createName = $folder.attributes['Name'].value
+        $protected = $folder.attributes['Protected'].value
+        
+        $addFolder = Join-Path -Path $folderPath -ChildPath $createName           
+        New-Item -ItemType directory -Path $addFolder -ErrorAction Stop
+        Write-Host ("Creating Folder '{0}'" -f $addFolder) -ForegroundColor Cyan
+        if(![String]::IsNullOrEmpty($protected)){
+          #need to create a folder in the TMF Secure area also
+          Write-Host ("Protected Folder") -ForegroundColor Gray          
+          $protectedPath = $baseSecFolder+$path
+          $addProtectedFolder = Join-Path -Path $protectedPath -ChildPath $createName
+          New-Item -ItemType directory $addProtectedFolder -ErrorAction stop
+          #need to create a shortcut in the none protected area to this new folder
+          #can we do this easily
+          $wshshell = New-Object -ComObject WScript.Shell
+          $lnk = $wshshell.CreateShortcut($addFolder+"\protected.lnk") 
+          $lnk.TargetPath =$addProtectedFolder
+          $lnk.Save() 
+          #now let's re-add the rule with read access
+          add-AclToFolder $addFolder $writeSecGroup.Text "Read"
+        }
+        update-FileList $selectedFile
       }
+      $linkFile = Join-Path -Path $Structurelocation.Text -ChildPath $Link
+      [xml]$xmlLink = Get-Content -path $linkFile
+      $folders = $xmlLink.Project.FolderList
+      $path = $xmlLink.Project.Header.path.Name
+      $Link = $xmlLink.Project.Header.Link.Name
       
-      #create the subfolder path
-      $newSubFolder = join-Path -Path $newSubPath -ChildPath $folder
-      $newFolderAccess = $GroupPrefix+$folderName.Text+"_"+$groupName+"_Auto_FolderAccess_"+$folderCount
-      $newFolderAccessWrite = $GroupPrefix+$folderName.Text+"_"+$groupName+"_Auto_FolderAccess_Write_"+$folderCount
-      try
-      {
-        #Check for the existence of the group
-        $checkExists = Get-ADGroup -Identity $newFolderAccess 
-      }
-      catch
-      {
-        #if the Groups dont exist create them
-        Write-Error -Message "Group Not found, creating it '$newFolderAccess'. Error was: $_" -ErrorAction SilentlyContinue
-        New-ADGroup -Name $newFolderAccess -GroupCategory Security -GroupScope Global -Path ("OU={0},{1}" -f $folderName.Text, $organisationUnit.Text) -Description ("\{0}\{1}" -f $folderName.Text, $folder)
-        New-ADGroup -Name $newFolderAccessWrite -GroupCategory Security -GroupScope Global -Path ("OU={0},{1}" -f $folderName.Text, $organisationUnit.Text) -Description ("\{0}\{1}" -f $folderName.Text, $folder)              
-      }
-                       
-      #if required create the new subfolder           
-      New-Item -ItemType directory -Path $newSubFolder -ErrorAction Stop
-      Write-Host ("Creating Folder '{0}'" -f $folder) -ForegroundColor Cyan
-           
-      #Get the access control list of the new sub folder
-      $aclSub = Get-Acl $newSubFolder
-      #break the inheritence and copy the inherited access rules 
-      $aclSub.SetAccessRuleProtection($true,$true)
-           
-      ##########################################################
-      #for the new/existing subfolder add the selected groups with read
-      if(![string]::IsNullOrEmpty($globalReadSecGroup.Text)) 
-      {
-        $ruleIdentity = Get-ADGroup -Filter {Name -eq $globalReadSecGroup.Text}
-        $ruleParams = $ruleIdentity.SID, "ReadAndExecute", "ContainerInherit, ObjectInherit","None", "Allow"
-        #Create the Access control rule for the sub folder
-        $ruleSub = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleParams) 
-        #Add the rule to the access control list
-        $aclSub.AddAccessRule($ruleSub)
-      }                     
-
-      ######################################
-      #Now add the rights for the new access
-      # get the SID of the group (for more consistency)
-      $strSId = (Get-ADGroup -Filter {Name -eq $newFolderAccess}).SID
-             
-      if(![string]::IsNullOrEmpty($ReadOnlyGroups)){ 
-        #now add the selected read only groups to the new group
-        $strRO_SId = $ReadOnlyGroups 
-      }
-             
-      #add the Folder Access Group
-      $ruleSubParams = $strSId, "ReadAndExecute", "ContainerInherit, ObjectInherit","None", "Allow"
-      #Create the Access control rule for the sub folder
-      $ruleSub = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleSubParams)
-      #Add the rule to the access control list
-      $aclSub.AddAccessRule($ruleSub)
-      ######################################
-      #Now add the rights for the new access
-      # get the SID of the group (for more consistency)
-      $strSId1 = (Get-ADGroup -Filter {Name -eq $newFolderAccessWrite}).SID
-             
-      if(![string]::IsNullOrEmpty($WriteGroups)){ 
-        #now add the selected Write groups to the new group
-        $strW_SId = $WriteGroups  
-      }                    
-                         
-      #add the Folder Access Group
-      $ruleSubParams = $strSId1, "Modify", "ContainerInherit, ObjectInherit","None", "Allow"
-      #Create the Access control rule for the sub folder
-      $ruleSub1 = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleSubParams)
-      #Add the rule to the access control list
-      $aclSub.AddAccessRule($ruleSub1)
-      
-      $ruleIdentitySId = (Get-ADGroup -Filter {Name -eq $newFolderList}).SID       
-      #add the Folder Access Group
-      $ruleSubParams = $ruleIdentitySId, "ListDirectory", "Allow"
-      #Create the Access control rule for the sub folder
-      $ruleSub2 = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleSubParams)
-      #Add the rule to the access control list
-      $aclSub.AddAccessRule($ruleSub2)
-              
-      ##################################################################
-      #Add the new group for the folder access to the Folder List group.
-      $sId = (Get-ADGroup "$newFolderList").SID
-      Add-ADGroupMember -Identity $sId -Members $strSId
-      Add-ADGroupMember -Identity $sId -Members $strSId1
-      if(![string]::IsNullOrEmpty($ReadOnlyGroups)){
-        Add-ADGroupMember -Identity $strSId -Members $strRO_SId
-      }
-      if(![string]::IsNullOrEmpty($WriteGroups)){ 
-        Add-ADGroupMember -Identity $strSId1 -Members $strW_SId
-      }
-             
-      #Set the access control rule to the list.
-      (Get-Item $newSubFolder).SetAccessControl($aclSub)
-      Write-Host ("Access created for '{0}'" -f $folder) -ForegroundColor Cyan
-      Write-Host
-      $folderCount++
     }
-    #Lastly add the folder list group to the Project List group
-    #Add-ADGroupMember -Identity "NTRF_List_Projects" -Members $sId
-}
+    #the process has completed so now need to update the form
+    
+} 
 
+function update-FileList($fileSelect) {
+  # now update the checked structure items in the xml
+    $saveName = $folderName.Text
+    [xml]$xmlFile = Get-Content -path "C:\temp\project\$saveName.xml"
+    $FindCheck = Select-Xml -Xml $xmlFile -XPath "//*[@Name='$fileSelect']" | Select-Object -ExpandProperty "node"
+    $FindCheck.InnerText = "Checked"
+    $xmlFile.Save("C:\temp\project\$saveName.xml")
+    #action has completed so we need to prompt for a new location to create the next folders
+    # we know the project folder has been created so let's uncheck the Create Folder CheckBox
+    $createFolder.Checked = $false
+}
 function show-message ( $message ) {
   Add-Type -AssemblyName PresentationFramework
   $choice = [System.Windows.MessageBox]::Show($message)
