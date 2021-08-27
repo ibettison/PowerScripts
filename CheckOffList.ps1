@@ -772,14 +772,14 @@ function Add-FolderStructure($selectedFile){
           #now let's re-add the rule with read access
           add-AclToFolder $addFolder $writeSecGroup.Text "Read"
         }
-        update-FileList $selectedFile
+        
       }
       $linkFile = Join-Path -Path $Structurelocation.Text -ChildPath $Link
       [xml]$xmlLink = Get-Content -path $linkFile
       $folders = $xmlLink.Project.FolderList
-      $path = $xmlLink.Project.Header.path.Name
+      $path = $xmlLink.Project.Header.path.Name      
+      update-FileList $Link
       $Link = $xmlLink.Project.Header.Link.Name
-      
     }
     #the process has completed so now need to update the form
     
