@@ -1,28 +1,12 @@
-﻿function Show-CheckList 
+﻿function Add-ParticipatingSites 
 {
-  <#
-      .SYNOPSIS
-      A script to display a popup folder selection window.
-      .DESCRIPTION
-      Shows a selection window from the computer running the script and allows a choice of folder to return
-      .EXAMPLE
-      Get-Folder
-      .RETURNS
-      The chosen folder as unc ie. \\campus\dept\crf
-  #>
-
-  <# This form was created using POSHGUI.com  a free online gui designer for PowerShell
-      .NAME
-      Create Project Folder
-  #>
-
   Add-Type -AssemblyName System.Windows.Forms
   Add-Type -AssemblyName System.Drawing
   [System.Windows.Forms.Application]::EnableVisualStyles()
 
   $Form                            = New-Object -TypeName system.Windows.Forms.Form
   $Form.ClientSize                 = New-Object -TypeName System.Drawing.Point -ArgumentList (672,450)
-  $Form.text                       = "Project Folder Creation"
+  $Form.text                       = "Creation of Participating Sites"
   $Form.TopMost                    = $true
   $Form.AutoScroll                 = $true
 
@@ -200,15 +184,6 @@
   $Form.ShowDialog()| Out-Null
 }
 
-function create-Folder($path){
-  if(!(test-path $path))
-  {
-    #create thenew project folder
-    New-Item -ItemType Directory -Force -Path $path
-    #after creating the project folder need to create the TMF folder and the TMF-Secure Folder
-    
-  }
-}
 
 function search-Global{
   $globalRead = Select-Groups -ADGroup $globalReadSecGroup.Text
@@ -446,9 +421,10 @@ function load-Structure
   }
 }
 
+
 function create-Project( $fileSelect ) {
   Add-Type -AssemblyName PresentationFramework
-  $choice = [System.Windows.MessageBox]::Show('Confirm you want to create the project folders?', 'Confirmation', 4)
+  $choice = [System.Windows.MessageBox]::Show('Confirm you want to create the participating Sites?', 'Confirmation', 4)
   if($choice -eq 'Yes') {
     #now need to check if all of the settings have been set before we go
     try
@@ -476,8 +452,7 @@ function create-Project( $fileSelect ) {
       #There is a problem with the information passed to the function by the user
       Write-Error -Message "There has been an Error. Error was: $_" -ErrorAction Stop
     }
-    $TopLevelCreated = create-topLevelAccess
-    $newGroup = add-GroupAccess
+
     $newFolders = Add-FolderStructure($fileSelect)
     Write-Host
     Write-Host "The process has completed."
@@ -498,131 +473,6 @@ function create-Project( $fileSelect ) {
     
   }
 }
-
-
-function create-topLevelAccess {
-  Write-Host("Creating top-level Access") -ForegroundColor Cyan
-  try
-  {      
-    #Create a new Project top level Access    
-    #join the selected path and the entered foldername to form the working folder path
-    $newFolder =join-Path -Path $location.Text -ChildPath $folderName.text
-    #If required a new folder is created 
-    #check if folder exists already
-    if(-not (test-path -Path $newFolder -PathType Container)) {
-      #creates the new folder 
-      New-Item -ItemType directory -Path $newFolder -ErrorAction Stop
-      #now lets create the TMF folders for the read access and the no access for the Stats team
-      $TMFPath = "TMF"
-      $TMFSecurePath = "TMF Secure"
-      $newTMFFolder = join-Path -Path $newFolder -ChildPath  $TMFPath
-      $newTMFSecFolder = join-Path -Path $newFolder -ChildPath  $TMFSecurePath
-      if(-not (test-path -Path $newTMFFolder -PathType Container)) {
-        New-Item -ItemType directory -Path $newTMFFolder -ErrorAction Stop
-      }
-      if(-not (test-path -Path $newTMFSecFolder -PathType Container)) {
-        New-Item -ItemType directory -Path $newTMFSecFolder -ErrorAction Stop
-      }        
-    }
-    #add access to new project folder for the project list group (Projects_List_CTU_Trials)
-    add-AclToFolder $newFolder "Projects_List_CTU_Trials" "List"
-    #add group access for the low levels TMF and TMF Secure
-    add-AclToFolder $newTMFFolder $globalReadSecGroup.Text "Read"
-    add-AclToFolder $newTMFFolder $readSecGroup.Text "Read"
-    add-AclToFolder $newTMFFolder $writeSecGroup.Text "Write"
-    add-AclToFolder $newTMFSecFolder $globalReadSecGroup.Text "Read"
-    add-AclToFolder $newTMFSecFolder $writeSecGroup.Text "Write"      
-  }
-  catch
-  {
-    #if the folder cannot be created the error is captured here
-    Write-Error -Message "There has been an Error. Error was: $_" -ErrorAction Stop
-  }
-
-}
-function add-AclToFolder {
-   param
-   (
-     [Parameter(Mandatory=$true, Position=0)]
-     [String]
-     $folderParam,
-     [Parameter(Mandatory=$true, Position=1)]
-     [String]
-     $secGroupParam,
-     [Parameter(Mandatory=$true, Position=3)]
-     [String] $setAccessTypeParam
-         
-   )
-  
-  $acl = Get-Acl $folderParam
-  #break the inheritence and copy the inherited access rules 
-  $acl.SetAccessRuleProtection($true,$true)
-  #Set the Access Control List after the removal of inheritance as this confuses things
-  (Get-Item $folderParam).SetAccessControl($acl)
-  $acl = Get-Acl $folderParam       
-  <#Parameters for SetAccessRuleProtection
-      isProtected
-      Boolean
-      true to protect the access rules associated with this ObjectSecurity object from inheritance; false to allow inheritance.
-
-      preserveInheritance
-      Boolean
-      true to preserve inherited access rules; false to remove inherited access rules. This parameter is ignored if isProtected is false.
-  #>        
-  
-  $ruleIdentity = (Get-ADGroup -Filter {Name -eq $secGroupParam}).SID
-  Switch($setAccessTypeParam)
-  {
-    "List" 
-    {
-      $ruleParams = $ruleIdentity, "ListDirectory", "Allow"
-    }
-    "Read"
-    {
-      $ruleParams = $ruleIdentity, "ReadAndExecute", "ContainerInherit, ObjectInherit","None", "Allow"
-    }
-    "Write"
-    {
-      $ruleParams = $ruleIdentity, "Modify", "ContainerInherit, ObjectInherit","None", "Allow"
-    }
-  }
-  
-  #Create the Access rule
-  $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($ruleParams)
-  #need to have a pause to allow AD to update
-  #Add the Access rule to the Access control List
-  $acl.SetAccessRule($rule)  
-  #Set the Access Control List
-  (Get-Item $folderParam).SetAccessControl($acl)
-  Get-Acl $folderParam | ForEach-Object Access
-  $acl = ''
-  $rule =''
-  }
-
-function add-GroupAccess {
-  $newFolder = $location.Text
-  $ProjectsGroup = "Projects_List_CTU_Trials"
-  $globalGroup = get-adgroup -Filter {name -eq $globalReadSecGroup.Text}
-  $globalGroupSId = $globalGroup.SID    
-  #check if Groups have been selected
-  if(![string]::IsNullOrEmpty($globalReadSecGroup.Text)) 
-  {
-    #Add the global read group to the Projects list group so the project folder can be listed from the toplevel 
-    Add-ADGroupMember -Identity $ProjectsGroup -Members $globalGroupSId    
-  }
-  if(![string]::IsNullOrEmpty($readSecGroup.Text)) 
-  {
-    #Add the global read group to the Projects list group so the project folder can be listed from the toplevel 
-    Add-ADGroupMember -Identity $ProjectsGroup -Members $readSecGroup.Text    
-  }
-  if(![string]::IsNullOrEmpty($writeSecGroup.Text)) 
-  {
-    #Add the global read group to the Projects list group so the project folder can be listed from the toplevel 
-    Add-ADGroupMember -Identity $ProjectsGroup -Members $writeSecGroup.Text    
-  }       
-  
-}
-
 function Add-FolderStructure($selectedFile){
   
   #if a structure file is not chosen then the script ends
@@ -635,20 +485,29 @@ function Add-FolderStructure($selectedFile){
     $HeaderDetail = $xmlFile.Project.Header
     $path = $HeaderDetail.Path.Name
     $Link = $HeaderDetail.Link.Name
+    $sitesLocation = join-path -path $Structurelocation.Text -ChildPath $Link
+    [xml]$xmlSiteFile = Get-Content -path $sitesLocation
+    $sitesFolders = $xmlSiteFile.Project.FolderList
     $Level = $HeaderDetail.Level.Name
-    While(![String]::IsNullOrEmpty($Link))
-    {
+    foreach($sites in $sitesFolders.Folder){
+      #this is the name of the Site folder and the folders 'a' to 'n' are created below this folder.
+      $siteName = $sites.attributes['Name'].value
       foreach($folder in $folders.Folder) 
       {
         $folderPath = $baseFolder+$path
+        #add the site name to path
+        $folderpath = join-path -path $folderpath -ChildPath $siteName
         #if required create the new subfolder
         $createName = $folder.attributes['Name'].value
         $protected = $folder.attributes['Protected'].value
         $addFolder = Join-Path -Path $folderPath -ChildPath $createName        
         if(![String]::IsNullOrEmpty($protected)){
           #need to create a folder in the TMF Secure area also
+          #with a link to it in the TMF structure
           Write-Host ("Protected Folder") -ForegroundColor Gray          
-          $protectedPath = $baseSecFolder+$path          
+          $protectedPath = $baseSecFolder+$path 
+          #add the sitename to the path
+          $protectedPath = Join-Path -Path $protectedPath -ChildPath $siteName       
           $addProtectedFolder = Join-Path -Path $protectedPath -ChildPath $createName
           Write-Host ("Creating Folder '{0}'" -f $addProtectedFolder) -ForegroundColor Cyan
           New-Item -ItemType directory $addProtectedFolder -ErrorAction stop
@@ -666,33 +525,10 @@ function Add-FolderStructure($selectedFile){
           Write-Host ("Creating Folder '{0}'" -f $addFolder) -ForegroundColor Cyan
         }        
       }
-      $linkFile = Join-Path -Path $Structurelocation.Text -ChildPath $Link
-      [xml]$xmlLink = Get-Content -path $linkFile
-      $folders = $xmlLink.Project.FolderList
-      $path = $xmlLink.Project.Header.path.Name      
-      update-FileList $Link
-      $Link = $xmlLink.Project.Header.Link.Name
     }
-    #the process has completed so now need to update the form
-    
+    #the process has completed so now need to update the form    
 } 
 
-function update-FileList($fileSelect) {
-  # now update the checked structure items in the xml
-    $saveName = $folderName.Text
-    [xml]$xmlFile = Get-Content -path "C:\temp\project\$saveName.xml"
-    $FindCheck = Select-Xml -Xml $xmlFile -XPath "//*[@Name='$fileSelect']" | Select-Object -ExpandProperty "node"
-    $FindCheck.InnerText = "Checked"
-    $xmlFile.Save("C:\temp\project\$saveName.xml")
-    #action has completed so we need to prompt for a new location to create the next folders
-    # we know the project folder has been created so let's uncheck the Create Folder CheckBox
-    $createFolder.Checked = $false
-}
-function show-message ( $message ) {
-  Add-Type -AssemblyName PresentationFramework
-  $choice = [System.Windows.MessageBox]::Show($message)
-  
-}
 
 function Get-Folder
 {

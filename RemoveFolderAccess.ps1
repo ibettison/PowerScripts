@@ -1,4 +1,4 @@
-﻿function Remove-StatsAccess 
+﻿function Remove-FolderAccess 
 {
   <#
       .SYNOPSIS
@@ -74,6 +74,7 @@ function get-location
 {   
   $path = Get-Folder 
   if(![string]::IsNullOrEmpty($path)){
+    Write-Host ("Please wait - retrieving a list of all AD security Groups from the Folder structure.") -ForegroundColor Cyan
     $location.Text = $path
     $folderAcl = get-Groups
     # setup a grid view to select the Group Multiple selection
