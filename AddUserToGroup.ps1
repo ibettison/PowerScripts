@@ -1,7 +1,4 @@
-﻿
-function Add-UserToGroup
-{
-  <#
+﻿  <#
       .SYNOPSIS 
       This script adds a user to a group but first searches for the group and lists the membership 
 
@@ -25,13 +22,10 @@ function Add-UserToGroup
       Confirmation of user added to the group
 
       .EXAMPLE
-
       AddUserToGroup.ps1
   #>
-  
-
-
-
+function Add-UserToGroup
+{
   Clear-Host
   $partialGroup = Read-Host -Prompt "Type the group to add the user to (partial search)"
 
@@ -63,7 +57,6 @@ function Add-UserToGroup
   catch
   {
     Write-Host "ERROR :" $_.Exception
-    Exit
   }
 
 
@@ -122,7 +115,9 @@ function Add-UserToGroup
             }
             if([string]::IsNullOrEmpty($Creds))
             {
-              $Creds = Get-Credential
+              
+              $creds = Get-SavedCredentials -UserId sib8
+              
             } 
             switch ($addOrRemove)
             {

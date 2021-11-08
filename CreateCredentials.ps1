@@ -72,14 +72,14 @@ function Add-NewLocalAdmin {
     }
 }  
 
-  if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  <#if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process PowerShell -Verb RunAs "-NoProfile -ExecutionPolicy Bypass -Command `"cd '$pwd'; & '$PSCommandPath';`""
     exit
 }
-
+#>
 # Your script here
 
-  #$credentials = Get-Credentials -RemoteProtected "$env:SystemDrive\Temp\Protected\" -UserName '\\campus\sib8'
+  $credentials = Get-Credentials -RemoteProtected "$env:SystemDrive\Temp\Protected\" -UserName '\\campus\sib8'
   $NewLocalAdmin = Read-Host -Prompt 'New local admin username:'
   $Password = Read-Host -AsSecureString -Prompt ('Create a password for {0}' -f $NewLocalAdmin)  
   Add-NewLocalAdmin -NewLocalAdmin $NewLocalAdmin -Password $Password

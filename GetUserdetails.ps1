@@ -1,4 +1,4 @@
-﻿function Get-UserBySurname{
+﻿function Get-UserByName{
   <#
       .SYNOPSIS
       Describe purpose of "Get-UserBySurname" in 1-2 sentences.
@@ -30,13 +30,25 @@
 
   param
   (
-    [Parameter(Mandatory,HelpMessage='Enter the Surname to search for', Position=0)]
+    [Parameter(Mandatory,HelpMessage='Enter the Name or Id to search for', Position=0)]
     [String]
-    $Surname
+    $Name,
+    [Parameter(Mandatory,HelpMessage='Enter either First, Last, Full or Id', Position=0)]
+    [String]
+    $SearchType
 		
   )
-  $searchFor = $Surname + "*"
-  Get-ADUser -Filter {Surname -like $searchFor} | Select-Object -Property Name,SamAccountName,GivenName,Surname
 
+  $Name = "$Name*"
+  switch ( $SearchType )
+  {
+      First {
+              Get-ADUser -Filter {GivenName -like $Name}  | Select-Object -Property Name,SamAccountName,GivenName,Surname
+              Write-Host "Hello" 
+            }
+      Last  {Get-ADUser -Filter {Surname -like $Name} | Select-Object -Property Name,SamAccountName,GivenName,Surname    }
+      Full  {Get-ADUser -Filter {GivenName+" "+Surname -eq "$Name" } | Select-Object -Property Name,SamAccountName,GivenName,Surname   }
+      Id    {Get-ADUser -Filter {SamAccountName -eq "$Name"} | Select-Object -Property Name,SamAccountName,GivenName,Surname }
+  }
 }
 

@@ -13,14 +13,14 @@
   (
     [Parameter(Position=0)]
     [string]
-    $Computer = 'FMS-CAV-400'
+    $Computer = 'FMS-CAV-L33'
   )
   
-  if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  <#if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process -FilePath PowerShell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"cd '$pwd'; & '$PSCommandPath';`""
     exit
   }
-
+#>
   # Your script here
   $sess = New-PSSession -ComputerName $Computer
 
