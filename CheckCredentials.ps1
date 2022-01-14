@@ -3,7 +3,7 @@
       .SYNOPSIS
       Checks for the existence of UAC credentials to run on a task without having to type them.
       .DESCRIPTION
-      Allows the running of a powershell command requiring elivated priviledges without typing them if the encrypted
+      Allows the running of a powershell command requiring elevated priviledges without typing them if the encrypted
       files exist on the current machine. The files are contained in a protected folder inside C:\Temp
       .EXAMPLE
       Check-Credentials -UserId sib8 -AESKeyFilePath C:\temp\Protected\AESKey.txt -FilePath C:\temp\Protected\password.txt

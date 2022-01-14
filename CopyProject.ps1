@@ -36,4 +36,7 @@
   }else{
     robocopy $FromFolder $ToNewFolder /S /COPY:DAT /R:3 /W:5 /LOG:C:\temp\project\CopyLog.log /TEE
   }
+  #now lets reconcile the two locations
+  Set-Location -Path C:\Temp
+  ROBOCOPY $FromFolder $ToNewFolder /e /l /ns /njs /njh /ndl /fp /log:reconcile.txt
 }

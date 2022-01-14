@@ -45,7 +45,8 @@ Function Get-FromList(){
 }
 
 Function Show-GroupMembers($GroupName) {
-  $GrpMembers = Get-ADGroupMember -Identity $GroupName
+  $members = Get-ADGroup -Filter {Name -eq $GroupName}
+  $GrpMembers = Get-ADGroupMember -identity $members.SamAccountName
   $membersInGroup = @()
   ForEach($person in $GrpMembers){
     if($person.ObjectClass -eq "User"){
@@ -60,6 +61,74 @@ Function Show-GroupMembers($GroupName) {
   $listmembers.Items.Clear()
   Foreach($item in $membersInGroup){
     $listmembers.Items.Add($item)
+  }
+}
+
+Function Find-User() {
+  try 
+   {
+     if([string]::IsNullOrEmpty($UserId.Text))
+     {
+       throw "Cannot search on NULL data."
+     }
+     #check for entry of id first of all
+     $Id = ("*{0}*" -f $UserId.Text)
+     $List = Get-ADUser -Filter {SamAccountName -Like $Id}
+     if(![string]::IsNullOrEmpty($List)) {
+       $User = Get-FromList $List 'List of User Ids'
+       $UserId.Text = $User.SamAccountName
+     }else{
+       $searchName = $UserId.Text
+       $NameArray = $searchName.Split(" ")
+       $FirstName = $NameArray[0]
+       if($NameArray.Count -eq 1){
+          $List = Get-ADUser -Filter {(GivenName -eq $FirstName) } | Select-Object -Property Name, GivenName, Surname, SamAccountName
+       }else{         
+         $LastName = ("*{0}*" -f $NameArray[1])
+         $List = Get-ADUser -Filter {(GivenName -eq $FirstName) -and (Surname -Like $LastName) } | Select-Object -Property Name, GivenName, Surname, SamAccountName
+       }
+       #-and (Surname -like "*$LastName*")
+       if([string]::IsNullOrEmpty($List)) 
+       {
+         throw "User Id was not found."
+       }
+       else
+       {
+         $User = Get-FromList $List 'List of User Ids'
+         $UserId.Text = $User.SamAccountName
+       }
+      }
+   }
+   catch
+   {
+     Write-Host "ERROR :" $_.Exception
+   }
+}
+Function Find-SecGrp(){
+  try 
+  {
+    $label.Content = "Group Members"
+    if([string]::IsNullOrEmpty($SecGroup.Text))
+    {
+      throw "Cannot search on NULL data."
+    }
+    $SecGroup.Text = "*" + $SecGroup.Text + "*"
+    $List    = Get-ADGroup -Filter {Name -like $SecGroup.Text} | Select-Object -Property Name
+    
+    if([string]::IsNullOrEmpty($List)) 
+    {
+      throw "Group was not found."
+    }
+    else
+    {
+      $Group = Get-FromList $List 'List of Security Groups'
+      $SecGroup.Text = $Group.Name
+      Show-GroupMembers($Group.Name)
+    }
+  }
+  catch
+  {
+    Write-Host "ERROR :" $_.Exception
   }
 }
 
@@ -105,6 +174,18 @@ $RunButton.Add_MouseLeave({
     $Gui.Cursor = [Windows.Input.Cursors]::Arrow
 })
 
+$Userid.Add_KeyDown({
+    if ($_.Key -eq "Enter") {
+       Find-User 
+    }
+})
+
+$SecGroup.Add_KeyDown({
+    if ($_.Key -eq "Enter") {
+       Find-SecGrp 
+    }
+})
+
 $RunButton.Add_Click{
   
     if ([String]::IsNullOrEmpty($userId.Text)){
@@ -118,10 +199,12 @@ $RunButton.Add_Click{
         {              
           $creds = Get-SavedCredentials -UserId sib8              
         }
+        # Need to get the Check the details of the group as there is an issue if the Group Name (Pre windows 2000) doesn't match the actual Group Name
+        $identity = Get-ADGroup -Filter {Name -eq $SecGroup.Text}
         if($RemoveUser.IsChecked) {
-          Remove-ADGroupMember -Identity $SecGroup.Text -Members $userId.Text -Credential $Creds
+          Remove-ADGroupMember -Identity $identity.SamAccountName -Members $userId.Text -Credential $Creds
         }else{ 
-          Add-ADGroupMember -Identity $SecGroup.Text -Members $userId.Text -Credential $Creds
+          Add-ADGroupMember -Identity $identity.SamAccountName -Members $userId.Text -Credential $Creds
         }
         Show-GroupMembers($SecGroup.Text)
         $label.Content = "Group Members (Updated)"
@@ -130,72 +213,11 @@ $RunButton.Add_Click{
 }
   
  $SearchId.Add_Click{
-   try 
-   {
-     if([string]::IsNullOrEmpty($UserId.Text))
-     {
-       throw "Cannot search on NULL data."
-     }
-     #check for entry of id first of all
-     $Id = ("*{0}*" -f $UserId.Text)
-     $List = Get-ADUser -Filter {SamAccountName -Like $Id}
-     if(![string]::IsNullOrEmpty($List)) {
-       $User = Get-FromList $List 'List of User Ids'
-       $UserId.Text = $User.SamAccountName
-     }else{
-       $searchName = $UserId.Text
-       $NameArray = $searchName.Split(" ")
-       $FirstName = $NameArray[0]
-       if($NameArray.Count -eq 1){
-          $List = Get-ADUser -Filter {(GivenName -eq $FirstName) } | Select-Object -Property Name, GivenName, Surname, SamAccountName
-       }else{         
-         $LastName = ("*{0}*" -f $NameArray[1])
-         $List = Get-ADUser -Filter {(GivenName -eq $FirstName) -and (Surname -Like $LastName) } | Select-Object -Property Name, GivenName, Surname, SamAccountName
-       }
-       #-and (Surname -like "*$LastName*")
-       if([string]::IsNullOrEmpty($List)) 
-       {
-         throw "User Id was not found."
-       }
-       else
-       {
-         $User = Get-FromList $List 'List of User Ids'
-         $UserId.Text = $User.SamAccountName
-       }
-      }
-   }
-   catch
-   {
-     Write-Host "ERROR :" $_.Exception
-   }
+   Find-User
  }
  
  $SearchSecGrp.Add_Click{
-  try 
-  {
-    $label.Content = "Group Members"
-    if([string]::IsNullOrEmpty($SecGroup.Text))
-    {
-      throw "Cannot search on NULL data."
-    }
-    $SecGroup.Text = "*" + $SecGroup.Text + "*"
-    $List    = Get-ADGroup -Filter {Name -like $SecGroup.Text} | Select-Object -Property Name
-    
-    if([string]::IsNullOrEmpty($List)) 
-    {
-      throw "Group was not found."
-    }
-    else
-    {
-      $Group = Get-FromList $List 'List of Security Groups'
-      $SecGroup.Text = $Group.Name
-      Show-GroupMembers($Group.Name)
-    }
-  }
-  catch
-  {
-    Write-Host "ERROR :" $_.Exception
-  }
+  Find-SecGrp
  }
 
 $GUI.ShowDialog() | Out-Null
